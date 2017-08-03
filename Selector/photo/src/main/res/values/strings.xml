@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Photo</string>
+    <string name="photo_list">图片列表</string>
+    <string name="select_finish">完成（%1$d/%2$d）</string>
+    <string name="finish">完成</string>
+    <string name="photo_preview">预览</string>
+
+</resources>
