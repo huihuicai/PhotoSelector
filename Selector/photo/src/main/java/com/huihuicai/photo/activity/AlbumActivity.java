@@ -1,11 +1,20 @@
 package com.huihuicai.photo.activity;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.Rect;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.annotation.NonNull;
 import android.support.v4.app.LoaderManager;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.content.CursorLoader;
+import android.support.v4.content.FileProvider;
 import android.support.v4.content.Loader;
 import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
@@ -17,8 +26,10 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.huihuicai.photo.R;
+import com.huihuicai.photo.Util;
 import com.huihuicai.photo.adapter.FolderAdapter;
 import com.huihuicai.photo.adapter.AlbumAdapter;
 import com.huihuicai.photo.bean.FolderBean;
@@ -26,6 +37,7 @@ import com.huihuicai.photo.bean.PhotoBean;
 import com.huihuicai.photo.view.StrongBottomSheetDialog;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,10 +47,16 @@ public class AlbumActivity extends BaseActivity implements
 
     public static final String EXTRA_MAX = "max_piece";
     public static final String EXTRA_CAMERA = "use_camera";
+    public static final String EXTRA_COLUMN = "max_column";
     public static final String EXTRA_RESULT = "result";
+    public static final String SUFFIX_PHOTO = "temp.png";
+    public static final String SUFFIX_CROP = "crop.png";
 
     public static final int LOADER_ALL = 0;
     public static final int LOADER_OTHER = 1;
+    public static final int REQUEST_CAMERA = 100;
+    public static final int REQUEST_CROP = 101;
+    public static final int REQUEST_PERMISSION = 102;
 
     private TextView tvFinish;
     private TextView tvCategory;
@@ -50,6 +68,7 @@ public class AlbumActivity extends BaseActivity implements
     private boolean mUseCamera;
     private AlbumAdapter mAdapter;
     private List<FolderBean> mFolderList = new ArrayList<>();
+    private File mCameraFile, mCutFile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,12 +92,13 @@ public class AlbumActivity extends BaseActivity implements
         String piece = getIntent().getStringExtra(EXTRA_MAX);
         mUseCamera = getIntent().getBooleanExtra(EXTRA_CAMERA, false);
         mMaxPiece = TextUtils.isEmpty(piece) ? 1 : Integer.parseInt(piece);
-        GridLayoutManager manager = new GridLayoutManager(this, 3);
+        int column = getIntent().getIntExtra(EXTRA_COLUMN, 3);
+        GridLayoutManager manager = new GridLayoutManager(this, column);
         rvPhoto.setLayoutManager(manager);
         mAdapter = new AlbumAdapter(this, mMaxPiece, mUseCamera);
         mAdapter.setOnClickListener(this);
         rvPhoto.setAdapter(mAdapter);
-        tvCategory.setText("所有");
+        tvCategory.setText(R.string.all);
         rvPhoto.addItemDecoration(new RecyclerView.ItemDecoration() {
             @Override
             public void getItemOffsets(Rect outRect, View view, RecyclerView parent, RecyclerView.State state) {
@@ -96,7 +116,13 @@ public class AlbumActivity extends BaseActivity implements
     @Override
     public void onItemClick(int position, int count) {
         if (mUseCamera && position == 0) {
-            // TODO: 2017/8/4 开启照相机
+            String[] permission = {Manifest.permission.CAMERA,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.READ_EXTERNAL_STORAGE};
+            boolean ready = Util.requestPermission(this, permission, REQUEST_PERMISSION);
+            if (ready) {
+                openCamera();
+            }
         } else {
             tvFinish.setEnabled(count != 0);
             tvPreview.setEnabled(count != 0);
@@ -273,4 +299,119 @@ public class AlbumActivity extends BaseActivity implements
         mFolderDialog.show();
     }
 
+    private void openCamera() {
+        mCameraFile = getFile(mCameraFile, SUFFIX_PHOTO);
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        Uri imgUri;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            imgUri = FileProvider.getUriForFile(this, "com.huihuicai.photo.fileprovider", mCameraFile);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } else {
+            imgUri = Uri.fromFile(mCameraFile);
+        }
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, imgUri);
+        startActivityForResult(intent, REQUEST_CAMERA);
+    }
+
+    private void cropPhoto() {
+        mCutFile = getFile(mCutFile, SUFFIX_CROP);
+        Intent intent = new Intent("com.android.camera.action.CROP");
+        Uri imgUri, outputUri;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            outputUri = FileProvider.getUriForFile(this, "com.huihuicai.photo.fileprovider", mCutFile);
+            imgUri = FileProvider.getUriForFile(this, "com.huihuicai.photo.fileprovider", mCameraFile);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } else {
+            outputUri = Uri.fromFile(mCutFile);
+            imgUri = Uri.fromFile(mCameraFile);
+        }
+        intent.setDataAndType(imgUri, "image/*");
+        intent.putExtra("crop", "true");
+        intent.putExtra("aspectX", 1);
+        intent.putExtra("aspectY", 1);
+        intent.putExtra("scale", true);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, outputUri);
+        intent.putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString());
+        intent.putExtra("noFaceDetection", true);
+        intent.putExtra("return-data", false);
+        startActivityForResult(intent, REQUEST_CROP);
+    }
+
+    private File getFile(File file, String photoName) {
+        if (file == null) {
+            String directory;
+            if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
+                directory = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "camera";
+            } else {
+                directory = getCacheDir().getAbsolutePath() + File.separator + "camera";
+            }
+            File parent = new File(directory);
+            if (!parent.exists()) {
+                parent.mkdirs();
+            }
+            file = new File(directory, photoName);
+            if (!file.exists()) {
+                try {
+                    file.createNewFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            }
+            return file;
+        } else {
+            if (file.exists()) {
+                file.delete();
+                try {
+                    file.createNewFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            }
+            return file;
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_PERMISSION) {
+            boolean isGrantAll = true;
+            for (int grant : grantResults) {
+                if (grant != PackageManager.PERMISSION_GRANTED) {
+                    isGrantAll = false;
+                    break;
+                }
+            }
+            if (isGrantAll) {
+                openCamera();
+            } else {
+                Toast.makeText(this, R.string.permission, Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CAMERA) {
+            if (data == null) {
+                cropPhoto();
+            }
+        } else if (requestCode == REQUEST_CROP) {
+            List<PhotoBean> list = new ArrayList<>();
+            if (mCutFile != null) {
+                PhotoBean bean = new PhotoBean();
+                bean.path = mCutFile.getAbsolutePath();
+                bean.parent = mCutFile.getParent();
+                bean.name = mCutFile.getName();
+                list.add(bean);
+            }
+            Intent intent = new Intent();
+            intent.putExtra(EXTRA_RESULT, (Serializable) list);
+            setResult(RESULT_OK, intent);
+            finish();
+        }
+    }
 }
