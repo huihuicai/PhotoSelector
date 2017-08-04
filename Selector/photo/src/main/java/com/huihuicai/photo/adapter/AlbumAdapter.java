@@ -2,6 +2,7 @@ package com.huihuicai.photo.adapter;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.util.SparseArray;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -19,11 +20,12 @@ import java.util.List;
  * Created by ybm on 2017/8/2.
  */
 
-public class PreviewAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
+public class AlbumAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         implements View.OnClickListener {
     private final int TYPE_CAMERA = 0;
     private final int TYPE_PHOTO = 1;
 
+    private OnItemClickListener mListener;
     private Context mContext;
     private LayoutInflater mInflater;
     private List<PhotoBean> mList;
@@ -31,7 +33,7 @@ public class PreviewAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private boolean mUseCamera;
     private int mMaxPiece;
 
-    public PreviewAdapter(Context context) {
+    public AlbumAdapter(Context context) {
         mContext = context;
         mInflater = LayoutInflater.from(context);
         mList = new ArrayList<>();
@@ -40,13 +42,14 @@ public class PreviewAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         mMaxPiece = 1;
     }
 
-    public PreviewAdapter(Context context, int max, boolean camera) {
+    public AlbumAdapter(Context context, int max, boolean camera) {
         this(context);
         mMaxPiece = max;
         mUseCamera = camera;
     }
 
     public void setData(List<PhotoBean> list) {
+        mSelected.clear();
         mList.clear();
         if (list != null) {
             mList.addAll(list);
@@ -60,9 +63,13 @@ public class PreviewAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         }
         List<PhotoBean> data = new ArrayList<>();
         for (int i = 0; i < mSelected.size(); i++) {
-            data.add(mSelected.get(i));
+            data.add(mSelected.valueAt(i));
         }
         return data;
+    }
+
+    public void setOnClickListener(OnItemClickListener listener) {
+        mListener = listener;
     }
 
     @Override
@@ -117,37 +124,32 @@ public class PreviewAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     public void onClick(View v) {
         RecyclerView.ViewHolder holder = (RecyclerView.ViewHolder) v.getTag();
         int position = holder.getAdapterPosition();
-        if (mUseCamera && position == 0) {
-            // TODO: 2017/8/2 调到拍照
-        } else {
+        if (!mUseCamera || position != 0) {
             int realPosition = mUseCamera ? position - 1 : position;
             PhotoHolder photoHolder = (PhotoHolder) v.getTag();
+            if (photoHolder == null || mList == null || realPosition >= mList.size()) {
+                return;
+            }
+            PhotoBean value = mSelected.get(realPosition);
             if (mMaxPiece <= mSelected.size()) {
-                PhotoBean value = mSelected.get(realPosition);
                 if (value != null) {
                     photoHolder.marker.setVisibility(View.GONE);
                     photoHolder.ivSelect.setImageResource(R.drawable.checkbox_normal);
                     mSelected.remove(realPosition);
                 }
-                return;
-            }
-            if (photoHolder == null) {
-                return;
-            }
-            if (mList == null || realPosition >= mList.size()) {
-                return;
-            }
-            PhotoBean value = mSelected.get(realPosition);
-            //之前的保存的有，本次就去掉；反之保存的没有，就加上
-            photoHolder.marker.setVisibility(value == null ? View.VISIBLE : View.GONE);
-            photoHolder.ivSelect.setImageResource(value == null ?
-                    R.drawable.checkbox_select : R.drawable.checkbox_normal);
-            if (value == null) {
-                mSelected.put(realPosition, mList.get(realPosition));
             } else {
-                mSelected.remove(realPosition);
+                //之前的保存的有，本次就去掉；反之保存的没有，就加上
+                photoHolder.marker.setVisibility(value == null ? View.VISIBLE : View.GONE);
+                photoHolder.ivSelect.setImageResource(value == null ?
+                        R.drawable.checkbox_select : R.drawable.checkbox_normal);
+                if (value == null) {
+                    mSelected.put(realPosition, mList.get(realPosition));
+                } else {
+                    mSelected.remove(realPosition);
+                }
             }
         }
+        mListener.onItemClick(position, mSelected.size());
     }
 
     class PhotoHolder extends RecyclerView.ViewHolder {
@@ -174,5 +176,9 @@ public class PreviewAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             super(itemView);
             root = itemView.findViewById(R.id.root);
         }
+    }
+
+    public interface OnItemClickListener {
+        void onItemClick(int position, int count);
     }
 }

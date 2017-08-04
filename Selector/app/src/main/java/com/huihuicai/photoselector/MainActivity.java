@@ -17,7 +17,7 @@ import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.Spinner;
 
-import com.huihuicai.photo.PreviewActivity;
+import com.huihuicai.photo.activity.AlbumActivity;
 import com.huihuicai.photo.bean.PhotoBean;
 
 import java.util.ArrayList;
@@ -64,9 +64,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void startSelector(View view) {
-        Intent intent = new Intent(this, PreviewActivity.class);
-        intent.putExtra(PreviewActivity.EXTRA_MAX, mMax);
-        intent.putExtra(PreviewActivity.EXTRA_CAMERA, cbCamera.isChecked());
+        Intent intent = new Intent(this, AlbumActivity.class);
+        intent.putExtra(AlbumActivity.EXTRA_MAX, mMax);
+        intent.putExtra(AlbumActivity.EXTRA_CAMERA, cbCamera.isChecked());
         startActivityForResult(intent, REQUEST_SELECT);
     }
 
@@ -74,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK && requestCode == REQUEST_SELECT) {
-            List<PhotoBean> result = data.getParcelableArrayListExtra(PreviewActivity.EXTRA_RESULT);
+            List<PhotoBean> result = (List<PhotoBean>) data.getSerializableExtra(AlbumActivity.EXTRA_RESULT);
             if (mAdapter != null) {
                 mAdapter.setData(result);
             }
