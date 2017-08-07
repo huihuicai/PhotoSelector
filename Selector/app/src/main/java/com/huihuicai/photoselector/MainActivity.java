@@ -11,13 +11,11 @@ import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.CheckBox;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Spinner;
 
@@ -139,7 +137,6 @@ public class MainActivity extends AppCompatActivity {
             PhotoBean bean = mList.get(position);
             if (bean != null) {
                 Bitmap bitmap = BitmapFactory.decodeFile(bean.path);
-                Log.e("bind", "path:" + bean.path + ",   bitmap:" + (bitmap == null));
                 holder.ivPhoto.setImageBitmap(bitmap);
             }
         }

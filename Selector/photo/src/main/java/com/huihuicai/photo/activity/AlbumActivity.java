@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
@@ -341,16 +342,13 @@ public class AlbumActivity extends BaseActivity implements
         if (file == null) {
             String directory;
             if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
-                directory = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "camera";
+                directory = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "camera" + File.separator;
             } else {
-                directory = getCacheDir().getAbsolutePath() + File.separator + "camera";
+                directory = getCacheDir().getAbsolutePath() + File.separator + "camera" + File.separator;
             }
-            File parent = new File(directory);
-            if (!parent.exists()) {
-                parent.mkdirs();
-            }
-            file = new File(directory, photoName);
+            file = new File(directory + photoName);
             if (!file.exists()) {
+                file.getParentFile().mkdirs();
                 try {
                     file.createNewFile();
                 } catch (IOException e) {
@@ -358,19 +356,17 @@ public class AlbumActivity extends BaseActivity implements
                     return null;
                 }
             }
-            return file;
-        } else {
-            if (file.exists()) {
-                file.delete();
-                try {
-                    file.createNewFile();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    return null;
-                }
-            }
-            return file;
         }
+        if (file.exists()) {
+            file.delete();
+            try {
+                file.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+        return file;
     }
 
     @Override
