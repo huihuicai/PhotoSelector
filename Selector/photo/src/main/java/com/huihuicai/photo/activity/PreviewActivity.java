@@ -12,6 +12,7 @@ import com.bumptech.glide.Glide;
 import com.github.chrisbanes.photoview.PhotoView;
 import com.huihuicai.photo.R;
 import com.huihuicai.photo.bean.PhotoBean;
+import com.huihuicai.photo.view.ScaleImageView;
 
 import java.util.List;
 

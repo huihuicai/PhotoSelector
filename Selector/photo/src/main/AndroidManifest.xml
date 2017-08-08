@@ -23,6 +23,8 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_provider_path" />
         </provider>
+
+        <activity android:name=".activity.CropActivity"></activity>
     </application>
 
 </manifest>
